@@ -10,7 +10,6 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script type="text/javascript">
         (function() {
-            // Initialize EmailJS with your Public Key
             emailjs.init("nyhd5ilLFe0dQhRGa"); 
         })();
     </script>
@@ -167,7 +166,6 @@
         <div class="section-wrapper bg-sec" id="sec-games"><h2 class="section-title">Trending <span>Games</span></h2><div class="grid" id="games-grid"></div></div>
     </main>
 
-    <!-- MODAL -->
     <div id="modal">
         <div class="modal-content">
             <div class="m-left"><img id="m-img" src="" alt="Product Image"></div>
@@ -186,7 +184,6 @@
                         <p><strong>Account:</strong> 1234567890</p>
                         <p><strong>Name:</strong> Ceylon Shop</p>
                     </div>
-                    <!-- Add your actual QR code image link below -->
                     <div class="qr-wrapper"><img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=YourPaymentLinkHere" alt="QR Code"></div>
                 </div>
 
@@ -298,7 +295,7 @@
             if (e.target === this) closeModal();
         });
 
-        // --- IMGBB + EMAILJS SUBMISSION LOGIC ---
+        // Form Submit Logic
         document.getElementById('order-form').addEventListener('submit', function(event) {
             event.preventDefault();
             
@@ -306,61 +303,71 @@
             btn.innerText = "Uploading Receipt...";
             btn.disabled = true;
 
-            // ImgBB API Key
             const imgbbKey = '5b7b1fc0655742507e16f0cde1cbdb49'; 
-            
-            // EmailJS Service ID and Template ID 
             const serviceID = 'service_kzn9nrh'; 
             const templateID = 'template_8llmbbp';
 
             const fileInput = document.querySelector('input[type="file"]');
-            const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
+            const file = fileInput.files[0];
 
-            fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    // The URL from ImgBB
-                    const imageUrl = data.data.url; 
-                    
-                    btn.innerText = "Sending Order...";
-
-                    // Template parameters to send via EmailJS
-                    const templateParams = {
-                        product_name: document.getElementById('form-product-name').value,
-                        product_price: document.getElementById('form-product-price').value,
-                        user_email: document.querySelector('input[type="email"]').value,
-                        receipt_link: imageUrl // The uploaded image URL
-                    };
-
-                    emailjs.send(serviceID, templateID, templateParams)
-                        .then(() => {
-                            btn.innerText = "Send Payment Proof";
-                            btn.disabled = false;
-                            alert('Success! Your payment receipt has been sent to the shop owner.');
-                            closeModal();
-                        }, (err) => {
-                            btn.innerText = "Send Payment Proof";
-                            btn.disabled = false;
-                            alert('Error sending email. Please check your setup.');
-                            console.log(err);
-                        });
-                } else {
-                    alert('Image upload failed. Please try again.');
-                    btn.innerText = "Send Payment Proof";
-                    btn.disabled = false;
-                }
-            })
-            .catch(error => {
-                alert('An error occurred while uploading the image.');
+            if(file.size > 5 * 1024 * 1024) {
+                alert("File is too large. Please upload an image smaller than 5MB.");
                 btn.innerText = "Send Payment Proof";
                 btn.disabled = false;
-                console.error(error);
-            });
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = function() {
+                const base64String = reader.result.split(',')[1];
+                
+                const formData = new FormData();
+                formData.append('image', base64String);
+
+                fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        const imageUrl = data.data.url; 
+                        
+                        btn.innerText = "Sending Order...";
+
+                        const templateParams = {
+                            product_name: document.getElementById('form-product-name').value,
+                            product_price: document.getElementById('form-product-price').value,
+                            user_email: document.querySelector('input[type="email"]').value,
+                            receipt_link: imageUrl 
+                        };
+
+                        emailjs.send(serviceID, templateID, templateParams)
+                            .then(() => {
+                                btn.innerText = "Send Payment Proof";
+                                btn.disabled = false;
+                                alert('Success! Your payment receipt has been sent to the shop owner.');
+                                closeModal();
+                            }, (err) => {
+                                btn.innerText = "Send Payment Proof";
+                                btn.disabled = false;
+                                alert('Error sending email. Please check your EmailJS setup.');
+                                console.log(err);
+                            });
+                    } else {
+                        alert('Upload failed: ' + (data.error ? data.error.message : 'Unknown API Error'));
+                        btn.innerText = "Send Payment Proof";
+                        btn.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    alert('Network error. Turn off adblockers or check your connection and try again.');
+                    btn.innerText = "Send Payment Proof";
+                    btn.disabled = false;
+                    console.error(error);
+                });
+            };
         });
     </script>
 </body>
